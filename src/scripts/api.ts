@@ -14,6 +14,7 @@ import {
   validateComfyNodeDef,
   LogsRawResponse
 } from '@/types/apiTypes'
+import { applyOverride } from './api.override'
 import axios from 'axios'
 
 interface QueuePromptRequestBody {
@@ -30,7 +31,7 @@ interface QueuePromptRequestBody {
   number?: number
 }
 
-class ComfyApi extends EventTarget {
+export class ComfyApi extends EventTarget {
   #registered = new Set()
   api_host: string
   api_base: string
@@ -118,7 +119,7 @@ class ComfyApi extends EventTarget {
    * Creates and connects a WebSocket for realtime updates
    * @param {boolean} isReconnect If the socket is connection is a reconnect attempt
    */
-  #createSocket(isReconnect?: boolean) {
+  createSocket(isReconnect?: boolean) {
     if (this.socket) {
       return
     }
@@ -150,7 +151,7 @@ class ComfyApi extends EventTarget {
     this.socket.addEventListener('close', () => {
       setTimeout(() => {
         this.socket = null
-        this.#createSocket(true)
+        this.createSocket(true)
       }, 300)
       if (opened) {
         this.dispatchEvent(new CustomEvent('status', { detail: null }))
@@ -242,7 +243,7 @@ class ComfyApi extends EventTarget {
    * Initialises sockets and realtime updates
    */
   init() {
-    this.#createSocket()
+    this.createSocket()
   }
 
   /**
@@ -269,6 +270,7 @@ class ComfyApi extends EventTarget {
     Record<string, ComfyNodeDef>
   > {
     const resp = await this.fetchApi('/object_info', { cache: 'no-store' })
+    console.log(resp);
     const objectInfoUnsafe = await resp.json()
     if (!validate) {
       return objectInfoUnsafe
@@ -278,7 +280,7 @@ class ComfyApi extends EventTarget {
     for (const key in objectInfoUnsafe) {
       const validatedDef = validateComfyNodeDef(
         objectInfoUnsafe[key],
-        /* onError=*/ (errorMessage: string) => {
+        /* onError=*/(errorMessage: string) => {
           console.warn(
             `Skipping invalid node definition: ${key}. See debug log for more information.`
           )
@@ -718,4 +720,5 @@ class ComfyApi extends EventTarget {
   }
 }
 
-export const api = new ComfyApi()
+export const api = applyOverride(new ComfyApi())
+// export const api = new ComfyApi()

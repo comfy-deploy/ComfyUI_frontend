@@ -1,0 +1,12 @@
+{
+    "rewrites": [
+        {
+            "source": "/static-assets/:machine_id/extensions/core/:file*",
+            "destination": "/extensions/core/:file*"
+        },
+        {
+            "source": "/static-assets/:machine_id/:path*",
+            "destination": "https://comfydeploy-fe-js-assets.s3.us-east-2.amazonaws.com/:machine_id/:path*"
+        }
+    ]
+}

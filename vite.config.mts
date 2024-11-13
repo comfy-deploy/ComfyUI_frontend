@@ -101,6 +101,8 @@ export default defineConfig({
 
       '/api': {
         target: DEV_SERVER_COMFYUI_URL,
+        changeOrigin: true,
+        secure: false,
         // Return empty array for extensions API as these modules
         // are not on vite's dev server.
         bypass: (req, res, options) => {
@@ -113,13 +115,21 @@ export default defineConfig({
 
       '/ws': {
         target: DEV_SERVER_COMFYUI_URL,
-        ws: true
+        secure: false,
+        changeOrigin: true,
+        ws: true,
       },
 
       '/testsubrouteindex': {
         target: 'http://localhost:5173',
         rewrite: (path) => path.substring('/testsubrouteindex'.length)
-      }
+      },
+
+      '/static-assets/': {
+        target: 'https://comfydeploy-fe-js-assets.s3.us-east-2.amazonaws.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/static-assets/, ''),
+      },
     }
   },
 
