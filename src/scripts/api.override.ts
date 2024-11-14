@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import type { ComfyNodeDef, UserDataFullInfo } from '@/types/apiTypes'
 import type { ComfyApi } from './api'
 import type { ComfyApp } from './app'
@@ -38,14 +36,19 @@ export function getRelativePath(from: string, to: string) {
 
 // const remoteStaticAssetsUrl = "http://localhost:8082/static-assets/e17e3d42-b338-41cc-8587-ba84ee3003e7"
 
+// Update the type definition to match the actual structure
+type FoldersFilesType = {
+    [key: string]: any[]
+}
+
 const context = {
     api_info: {} as any,
     models: [] as any,
     inputs: [] as any,
     volume_content: { content: [] } as any,
-    folders_files: folders_files,
-    public_folders_files: {},
-    private_folders_files: {}
+    folders_files: folders_files as FoldersFilesType,
+    public_folders_files: {} as FoldersFilesType,
+    private_folders_files: {} as FoldersFilesType
 }
 
 const getAPIInfo: () => Promise<any> = async () => {
@@ -211,13 +214,14 @@ export function applyOverride(object: ComfyApi) {
     object.apiURL = (path: string): string => {
         if (path.startsWith('/view')) {
             const params = new URLSearchParams(path.split('?')[1])
-            if (params.get('file_url')) {
-                return params.get('file_url')
+            const fileUrl = params.get('file_url')
+            if (fileUrl) {
+                return fileUrl
             }
             if (params.get('filename')) {
                 let fileName = params.get('filename')
                 if (params.get('subfolder')) {
-                    fileName = params.get('subfolder') + '/' + fileName
+                    fileName = `${params.get('subfolder')}/${fileName}`
                 }
 
                 // const volume_name =  "volume_name=" + "models_user_2ZA6vuKD3IJXju16oJVQGLBcWwg"
@@ -272,18 +276,18 @@ export function applyOverride(object: ComfyApi) {
         return Promise.resolve([])
     }
 
-    function createResponse(data, error?) {
+    function createResponse(data: any, error?: boolean) {
         return {
             status: error ? 500 : 200,
             json: () => Promise.resolve(data)
         }
     }
 
-    function postMessageToParent(type, data) {
+    function postMessageToParent(type: string, data: any) {
         window.parent.postMessage({ internal: { type, data } }, '*')
     }
 
-    function uploadFile(file, subdir) {
+    function uploadFile(file: File, subdir: string) {
         return new Promise((resolve) => {
             try {
                 const handleMessage = (event: MessageEvent) => {
@@ -361,12 +365,18 @@ export function applyOverride(object: ComfyApi) {
     const originalGetNodeDefs = object.getNodeDefs
     object.getNodeDefs = async (): Promise<Record<string, ComfyNodeDef>> => {
         const nodeDefinitions = await originalGetNodeDefs.call(object)
-        const nodeDefs = {}
+        const nodeDefs: Record<string, ComfyNodeDef> = {}
         for (const [nodeType, nodeDef] of Object.entries(nodeDefinitions)) {
             // @ts-ignore
             if (nodeDef.input) {
-                // @ts-ignore
-                let newNodeDef = { ...nodeDef, input: {} }
+                const newNodeDef = {
+                    // @ts-ignore
+                    ...nodeDef,
+                    input: {
+                        required: {},
+                        optional: {}
+                    }
+                }
                 // @ts-ignore
                 if (nodeDef.input.required) {
                     newNodeDef.input.required = replaceSpecialValues({
@@ -389,7 +399,7 @@ export function applyOverride(object: ComfyApi) {
         return nodeDefs
     }
 
-    function _updateDefs(rewrite, source) {
+    function _updateDefs(rewrite: boolean, source: 'public' | 'private'): void {
         const targetFoldersFiles =
             source === 'public'
                 ? context.public_folders_files
@@ -397,7 +407,11 @@ export function applyOverride(object: ComfyApi) {
         updateFoldersFiles(context.volume_content, targetFoldersFiles, rewrite)
     }
 
-    function updateFoldersFiles(data, folders_files, keepExisting = false) {
+    function updateFoldersFiles(
+        data: { contents: any[] },
+        folders_files: Record<string, any[]>,
+        keepExisting = false
+    ): void {
         // First, process existing keys in folders_files
         Object.keys(folders_files).forEach((key) => {
             processKey(key, data, folders_files, keepExisting)
@@ -407,19 +421,28 @@ export function applyOverride(object: ComfyApi) {
         data.contents.forEach((folder) => {
             const key = folder.path.split('/').pop() // Get the last part of the path as the key
             if (!folders_files.hasOwnProperty(key)) {
-                folders_files[key] = [[], {}] // Initialize new key with empty arrays
+                folders_files[key] = []; // Initialize new key with empty arrays
                 processKey(key, data, folders_files, keepExisting)
             }
         })
     }
 
-    function processKey(key, data, folders_files, keepExisting) {
-        const paths = Object.keys(folders_files[key][1])
-        const searchPaths = paths.length ? paths : [`/${key}`]
-        const uniqueFiles = new Set() // Using a Set to avoid duplicates
+    function processKey(
+        key: string, 
+        data: { contents: FileItem[] }, 
+        folders_files: Record<string, any[]>,
+        keepExisting: boolean
+    ) {
+        if (!folders_files[key]) {
+            folders_files[key] = [];
+        }
 
-        if (keepExisting && folders_files[key][0]) {
-            folders_files[key][0].forEach((file) => uniqueFiles.add(file))
+        const paths = Object.keys(folders_files[key])
+        const searchPaths = paths.length ? paths : [`/${key}`]
+        const uniqueFiles = new Set<string>()
+
+        if (keepExisting && folders_files[key]) {
+            folders_files[key].forEach((file: string) => uniqueFiles.add(file))
         }
 
         data.contents.forEach((folder) => {
@@ -430,29 +453,39 @@ export function applyOverride(object: ComfyApi) {
                 const folderKey = normalizedPath.split('/').filter(Boolean).join('/')
                 if (folder.path === folderKey) {
                     const foundFiles = findFilesInData(folder, folderKey)
-                    foundFiles.forEach((file) => uniqueFiles.add(file)) // Add files to the Set
+                    foundFiles.forEach((file) => uniqueFiles.add(file))
                 }
             })
         })
 
-        folders_files[key][0] = Array.from(uniqueFiles) // Convert Set back to Array
+        folders_files[key] = Array.from(uniqueFiles)
     }
 
-    function findFilesInData(folder, basePath) {
-        const foundFiles = []
-        function searchFolder(currentFolder, currentPath) {
-            currentFolder.contents.forEach((item) => {
+    interface FileItem {
+        type: string;
+        path: string;
+        contents?: FileItem[];
+    }
+
+    function findFilesInData(folder: FileItem, basePath: string): string[] {
+        const foundFiles: string[] = []
+        
+        function searchFolder(currentFolder: FileItem, currentPath: string) {
+            if (!currentFolder.contents) return;
+            
+            currentFolder.contents.forEach((item: FileItem) => {
                 if (item.type === 'file') {
                     const relativePath = getRelativePath(
                         basePath,
                         currentPath + '/' + basename(item.path)
                     )
                     foundFiles.push(relativePath)
-                } else if (item.type === 'folder') {
+                } else if (item.type === 'folder' && item.contents) {
                     searchFolder(item, currentPath + '/' + basename(item.path))
                 }
             })
         }
+        
         searchFolder(folder, basePath)
         return foundFiles
     }
@@ -460,25 +493,34 @@ export function applyOverride(object: ComfyApi) {
     async function updateNodeDefinitions() {
         const app = window.app
         const nodeDefs = await object.getNodeDefs()
-        for (const nodeType in LiteGraph.registered_node_types) {
-            const registeredNode = LiteGraph.registered_node_types[nodeType]
+        
+        interface RegisteredNodeTypes {
+            [key: string]: {
+                nodeData: any;
+            }
+        }
+        
+        for (const nodeType in (LiteGraph.registered_node_types as RegisteredNodeTypes)) {
+            const registeredNode = (LiteGraph.registered_node_types as RegisteredNodeTypes)[nodeType]
             const nodeDef = nodeDefs[nodeType]
             if (nodeDef) {
                 registeredNode.nodeData = nodeDef
             }
         }
+
+        interface GraphNode {
+            type: string;
+            widgets: any[];
+            refreshComboInNode?: (defs: any) => boolean;
+        }
+
         for (const nodeId in app.graph._nodes) {
-            const node = app.graph._nodes[nodeId]
+            const node = app.graph._nodes[nodeId] as unknown as GraphNode
             const nodeDef = nodeDefs[node.type]
-            if (
-                // @ts-ignore
-                typeof node.refreshComboInNode === 'function' &&
-                // @ts-ignore
-                node.refreshComboInNode(nodeDefs)
-            )
-                if (nodeDef) {
-                    for (const widgetName in node.widgets) {
-                        const widget = node.widgets[widgetName]
+            
+            if (typeof node.refreshComboInNode === 'function' && node.refreshComboInNode(nodeDefs)) {
+                if (nodeDef && nodeDef.input && nodeDef.input.required) {
+                    for (const widget of node.widgets) {
                         if (
                             widget.type === 'combo' &&
                             nodeDef.input.required[widget.name] !== undefined
@@ -487,17 +529,14 @@ export function applyOverride(object: ComfyApi) {
                         }
                     }
                 }
+            }
         }
     }
 
-    function replaceSpecialValues(definitions) {
-        const getFromFolderFiles = (key) => {
-            const publicContents = context.public_folders_files[key]
-                ? context.public_folders_files[key][0]
-                : []
-            const privateContents = context.private_folders_files[key]
-                ? context.private_folders_files[key][0]
-                : []
+    function replaceSpecialValues(definitions: Record<string, any[]>) {
+        const getFromFolderFiles = (key: string): { publicContents: string[], privateContents: string[] } => {
+            const publicContents = context.public_folders_files[key] || []
+            const privateContents = context.private_folders_files[key] || []
             return { publicContents, privateContents }
         }
 
@@ -510,7 +549,7 @@ export function applyOverride(object: ComfyApi) {
                     const video_extensions = ['webm', 'mp4', 'mkv', 'gif'] // from ComfyUI-VideoHelperSuite/videohelpersuite/load_video_nodes.py:15
                     definitions[nodeType] = [
                         [
-                            ...privateContents.filter((item) =>
+                            ...privateContents.filter((item: string) =>
                                 video_extensions.some((ext) =>
                                     item.toLowerCase().endsWith(`.${ext}`)
                                 )
@@ -545,8 +584,8 @@ export function applyOverride(object: ComfyApi) {
                             [
                                 ...definition[0].slice(0, i),
                                 ...context.inputs
-                                    .filter((input) => input.startsWith('embeddings/'))
-                                    .map((input) => input.slice(11))
+                                    .filter((input: string) => input.startsWith('embeddings/'))
+                                    .map((input: string) => input.slice(11))
                             ],
                             ...definition.slice(1)
                         ]
@@ -600,10 +639,10 @@ export function applyOverride(object: ComfyApi) {
                             [
                                 ...definition[0].slice(0, i),
                                 ...privateContents.map(
-                                    (item) => `bbox/${item.replace('ultralytics/', '')}`
+                                    (item: string) => `bbox/${item.replace('ultralytics/', '')}`
                                 ),
                                 ...publicContents.map(
-                                    (item) => `bbox/${item.replace('ultralytics/', '')}`
+                                    (item: string) => `bbox/${item.replace('ultralytics/', '')}`
                                 )
                             ],
                             ...definition.slice(1)
@@ -641,11 +680,11 @@ export function applyOverride(object: ComfyApi) {
                             [
                                 ...definition[0].slice(0, i),
                                 ...privateContents
-                                    .filter((item) => item.startsWith(xlabsType + '/'))
-                                    .map((item) => item.slice(xlabsType.length + 1)),
+                                    .filter((item: string) => item.startsWith(xlabsType + '/'))
+                                    .map((item: string) => item.slice(xlabsType.length + 1)),
                                 ...publicContents
-                                    .filter((item) => item.startsWith(xlabsType + '/'))
-                                    .map((item) => item.slice(xlabsType.length + 1))
+                                    .filter((item: string) => item.startsWith(xlabsType + '/'))
+                                    .map((item: string) => item.slice(xlabsType.length + 1))
                             ],
                             ...definition.slice(1)
                         ]
