@@ -14,7 +14,7 @@ import {
   validateComfyNodeDef,
   LogsRawResponse
 } from '@/types/apiTypes'
-import { applyOverride } from './api-override'
+import { applyOverride } from './api_override'
 import axios from 'axios'
 
 interface QueuePromptRequestBody {

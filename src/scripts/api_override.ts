@@ -428,8 +428,8 @@ export function applyOverride(object: ComfyApi) {
     }
 
     function processKey(
-        key: string, 
-        data: { contents: FileItem[] }, 
+        key: string,
+        data: { contents: FileItem[] },
         folders_files: Record<string, any[]>,
         keepExisting: boolean
     ) {
@@ -469,10 +469,10 @@ export function applyOverride(object: ComfyApi) {
 
     function findFilesInData(folder: FileItem, basePath: string): string[] {
         const foundFiles: string[] = []
-        
+
         function searchFolder(currentFolder: FileItem, currentPath: string) {
             if (!currentFolder.contents) return;
-            
+
             currentFolder.contents.forEach((item: FileItem) => {
                 if (item.type === 'file') {
                     const relativePath = getRelativePath(
@@ -485,7 +485,7 @@ export function applyOverride(object: ComfyApi) {
                 }
             })
         }
-        
+
         searchFolder(folder, basePath)
         return foundFiles
     }
@@ -493,13 +493,13 @@ export function applyOverride(object: ComfyApi) {
     async function updateNodeDefinitions() {
         const app = window.app
         const nodeDefs = await object.getNodeDefs()
-        
+
         interface RegisteredNodeTypes {
             [key: string]: {
                 nodeData: any;
             }
         }
-        
+
         for (const nodeType in (LiteGraph.registered_node_types as RegisteredNodeTypes)) {
             const registeredNode = (LiteGraph.registered_node_types as RegisteredNodeTypes)[nodeType]
             const nodeDef = nodeDefs[nodeType]
@@ -517,7 +517,7 @@ export function applyOverride(object: ComfyApi) {
         for (const nodeId in app.graph._nodes) {
             const node = app.graph._nodes[nodeId] as unknown as GraphNode
             const nodeDef = nodeDefs[node.type]
-            
+
             if (typeof node.refreshComboInNode === 'function' && node.refreshComboInNode(nodeDefs)) {
                 if (nodeDef && nodeDef.input && nodeDef.input.required) {
                     for (const widget of node.widgets) {
@@ -558,11 +558,15 @@ export function applyOverride(object: ComfyApi) {
                         ...definition.slice(1)
                     ]
                     continue
-                } else if (nodeType == 'image') {
+                }
+
+                if (nodeType == 'image') {
                     const { privateContents } = getFromFolderFiles('input')
                     definitions[nodeType] = [[...privateContents], ...definition.slice(1)]
                     continue
-                } else if (nodeType == 'brushnet') {
+                }
+
+                if (nodeType == 'brushnet') {
                     const { publicContents, privateContents } =
                         getFromFolderFiles('inpaint')
                     definitions[nodeType] = [
