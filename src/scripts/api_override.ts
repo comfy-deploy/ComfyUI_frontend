@@ -345,7 +345,7 @@ export function applyOverride(object: ComfyApi) {
       }
     }
 
-    return originalFetchApi.call(object, path, options)
+    return originalApiURL.call(object, path, options)
   }
 
   object.createSocket = (isReconnect?: boolean) => {}
