@@ -584,10 +584,10 @@ export function applyOverride(object: ComfyApi) {
               [
                 ...definition[0].slice(0, i),
                 ...privateContents.map(
-                  (item) => `bbox/${item.replace('ultralytics/', '')}`
+                  (item) => `${item.replace('ultralytics/', '')}`
                 ),
                 ...publicContents.map(
-                  (item) => `bbox/${item.replace('ultralytics/', '')}`
+                  (item) => `${item.replace('ultralytics/', '')}`
                 )
               ],
               ...definition.slice(1)
