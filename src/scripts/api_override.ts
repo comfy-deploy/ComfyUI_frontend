@@ -115,7 +115,9 @@ export function applyOverride(object: ComfyApi) {
 
     const data = await fetch(url)
       .then((response) => response.json())
-      .then((data) => data || [])
+      .then((data) =>
+        (data || []).filter((ext) => !ext.includes('comfyui-deploy'))
+      )
       .catch((error) => {
         console.error('Error fetching extensions:', error)
         return []
