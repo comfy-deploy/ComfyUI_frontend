@@ -103,7 +103,7 @@ export function applyOverride(object: ComfyApi) {
   }
 
   object.getExtensions = async (): Promise<string[]> => {
-    return []
+    // return []
     const api_info = await getAPIInfo()
     context.api_info = api_info
     console.log('api_info', api_info)
@@ -113,13 +113,17 @@ export function applyOverride(object: ComfyApi) {
     )
     console.log('api_info', 'extension-list', url)
 
-    return fetch(url)
+    const data = await fetch(url)
       .then((response) => response.json())
       .then((data) => data || [])
       .catch((error) => {
         console.error('Error fetching extensions:', error)
         return []
       })
+
+    console.log('data', data)
+
+    return data
   }
 
   object.getNodeDefs = async (): Promise<Record<string, ComfyNodeDef>> => {
@@ -133,12 +137,12 @@ export function applyOverride(object: ComfyApi) {
 
     const api_info = await getAPIInfo()
     context.api_info = api_info
-    console.log('api_info', api_info)
+    // console.log('api_info', api_info)
 
     const url = new URL(
       `${api_info.machine_url}/static-assets/${api_info.machine_id}/object_info.json`
     )
-    console.log('api_info', url)
+    // console.log('api_info', url)
     return fetch(url)
       .then((response) => response.json())
       .then((data) => data || {})
