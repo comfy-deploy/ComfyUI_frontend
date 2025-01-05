@@ -108,6 +108,13 @@ export function applyOverride(object: ComfyApi) {
     context.api_info = api_info
     console.log('api_info', api_info)
 
+    const useBuiltIn = !api_info.machine_hash
+
+    if (useBuiltIn) {
+      console.log('using built-in extensions')
+      await import('../scripts/cd/cd-plugin')
+    }
+
     const url = new URL(
       `${api_info.machine_url}/static-assets/${api_info.machine_hash ?? api_info.machine_id}/extension-list.json`
     )
@@ -115,9 +122,13 @@ export function applyOverride(object: ComfyApi) {
 
     const data = await fetch(url)
       .then((response) => response.json())
-      // .then((data) =>
-      //   (data || []).filter((ext) => !ext.includes('comfyui-deploy'))
-      // )
+      .then((data) => {
+        // Only filter if machine_hash is not present
+        if (useBuiltIn) {
+          return (data || []).filter((ext) => !ext.includes('comfyui-deploy'))
+        }
+        return data || []
+      })
       .catch((error) => {
         console.error('Error fetching extensions:', error)
         return []

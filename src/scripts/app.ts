@@ -1700,7 +1700,6 @@ export class ComfyApp {
           }
         })
     )
-    // await import('../scripts/cd/cd-plugin')
   }
 
   async #migrateSettings() {
