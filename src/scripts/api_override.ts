@@ -109,15 +109,15 @@ export function applyOverride(object: ComfyApi) {
     console.log('api_info', api_info)
 
     const url = new URL(
-      `${api_info.machine_url}/static-assets/${api_info.machine_id}/extension-list.json`
+      `${api_info.machine_url}/static-assets/${api_info.machine_hash ?? api_info.machine_id}/extension-list.json`
     )
     console.log('api_info', 'extension-list', url)
 
     const data = await fetch(url)
       .then((response) => response.json())
-      .then((data) =>
-        (data || []).filter((ext) => !ext.includes('comfyui-deploy'))
-      )
+      // .then((data) =>
+      //   (data || []).filter((ext) => !ext.includes('comfyui-deploy'))
+      // )
       .catch((error) => {
         console.error('Error fetching extensions:', error)
         return []
@@ -142,7 +142,7 @@ export function applyOverride(object: ComfyApi) {
     // console.log('api_info', api_info)
 
     const url = new URL(
-      `${api_info.machine_url}/static-assets/${api_info.machine_id}/object_info.json`
+      `${api_info.machine_url}/static-assets/${api_info.machine_hash ?? api_info.machine_id}/object_info.json`
     )
     // console.log('api_info', url)
     return fetch(url)
@@ -245,7 +245,7 @@ export function applyOverride(object: ComfyApi) {
     }
     if (path.startsWith('/extensions')) {
       // const base = "https://static-comfy-fe-bennykok-comfy-deploy.vercel.app"
-      const final = `/static-assets/${context.api_info.machine_id}${path}`
+      const final = `/static-assets/${context.api_info.machine_hash ?? context.api_info.machine_id}${path}`
       // console.log("hi", final);
       return final
     }
@@ -257,7 +257,7 @@ export function applyOverride(object: ComfyApi) {
   object.fileURL = (path: string): string => {
     console.log('path', path)
     if (path.startsWith('/extensions')) {
-      const final = `/static-assets/${context.api_info.machine_id}${path}`
+      const final = `/static-assets/${context.api_info.machine_hash ?? context.api_info.machine_id}${path}`
       console.log('api_info', final)
       return final
     }
