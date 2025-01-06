@@ -106,9 +106,10 @@ export function applyOverride(object: ComfyApi) {
     // return []
     const api_info = await getAPIInfo()
     context.api_info = api_info
-    console.log('api_info', api_info)
+    // console.log('api_info', api_info)
 
-    const useBuiltIn = !api_info.machine_hash
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    const useBuiltIn = isLocalhost || !api_info.machine_hash
 
     if (useBuiltIn) {
       console.log('using built-in extensions')
